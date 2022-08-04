@@ -3,22 +3,21 @@ import _ from "lodash";
 import { User, validate } from "../models/user";
 import express from "express";
 import swaggerJsDoc from "swagger-jsdoc";
+import { UniqueUserDto } from "../dtos/unique-user";
+import Joi from "joi";
 const router = express.Router();
 
 /**
  * @swagger
  * components:
  *  schemas:
- *    User:
+ *    CreateUserDto:
  *      type: object
  *      required:
  *        - name
  *        - email
  *        - password
  *      properties:
- *        id:
- *          type: string
- *          description: The auto-generated id of the user
  *        name:
  *          type: string
  *          description: The user full name
@@ -29,10 +28,25 @@ const router = express.Router();
  *          type: string
  *          description: The user password
  *      example:
- *        id: 62d86526570449f1938a98e5
  *        name: "Bashar Khadra"
  *        email: "b@mail.com"
  *        password: "12345"
+ */
+
+/**
+ * @swagger
+ * components:
+ *  schemas:
+ *    UniqueUserDto:
+ *      type: object
+ *      required:
+ *        - email
+ *      properties:
+ *        email:
+ *          type: string
+ *          description: The user email
+ *      example:
+ *        email: "b@mail.com"
  */
 
 /**
@@ -53,14 +67,14 @@ const router = express.Router();
  *      content:
  *        application/json:
  *          schema:
- *            $ref: '#/components/schemas/User'
+ *            $ref: '#/components/schemas/CreateUserDto'
  *    responses:
  *      200:
  *        description: The user was successfully created
  *        content:
  *          application/json:
  *            schema:
- *              $ref: '#/components/schemas/User'
+ *              $ref: '#/components/schemas/CreateUserDto'
  *        headers:
  *          x-auth-token:
  *            schema:
@@ -88,4 +102,55 @@ router.post("/", async (req, res) => {
     .send(_.pick(user, ["_id", "name", "email"]));
 });
 
+/**
+ * @swagger
+ * /api/users/unique:
+ *  post:
+ *    summary: Check if existing user is registered with the same email
+ *    tags: [Users]
+ *    requestBody:
+ *      required: true
+ *      content:
+ *        application/json:
+ *          schema:
+ *            $ref: '#/components/schemas/UniqueUserDto'
+ *
+ *    responses:
+ *      200:
+ *        description: User not regestered before
+ *        content:
+ *          text/plain:
+ *            schema:
+ *              type: string
+ *              example: User is not registered before.
+ *      400:
+ *        description: Bad request
+ *      409:
+ *        description: User already exist
+ *        content:
+ *          text/plain:
+ *            schema:
+ *              type: string
+ *              example: User already exist.
+ *      500:
+ *        description: Some server error
+ */
+router.post("/unique", async (req, res) => {
+  const { error } = validateEmail(req.body);
+  if (error) return res.status(400).send(error.details[0].message);
+
+  let user = await User.findOne({ email: req.body.email });
+
+  if (!user) return res.status(200).send("User is not registered before.");
+
+  return res.status(409).send("User already exist.");
+});
+
+function validateEmail(user: UniqueUserDto) {
+  const schema = Joi.object({
+    email: Joi.string().max(255).required().email(),
+  });
+
+  return schema.validate(user);
+}
 export default router;

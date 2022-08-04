@@ -2,6 +2,7 @@ import config from "config";
 import jwt from "jsonwebtoken";
 import Joi from "joi";
 import mongoose, { Document } from "mongoose";
+import { CreateUserDto } from "../dtos/create-user";
 
 // this interface used add generateAuthToken method
 export interface IUser extends Document {
@@ -46,7 +47,7 @@ userSchema.methods.generateAuthToken = function () {
 
 const User = mongoose.model<IUser>("User", userSchema);
 
-export function validateUser(user: IUser) {
+export function validateUser(user: CreateUserDto) {
   const schema = Joi.object({
     name: Joi.string().min(5).max(50).required(),
     email: Joi.string().max(255).required().email(),
